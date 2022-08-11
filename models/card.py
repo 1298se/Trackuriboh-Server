@@ -1,4 +1,4 @@
-from app import db
+from extensions import db
 from models.rarity import Rarity
 from models.set import Set
 

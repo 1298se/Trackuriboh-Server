@@ -1,40 +1,30 @@
-from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 
-from db_sync_worker import DatabaseSyncWorker
-from tcgplayer_request_handler import TCGPlayerRequestHandler
 from appconfig import AppConfig
+from extensions import db
+from extensions import scheduler
+from extensions import database_sync_worker
 
 load_dotenv()
-
-db = SQLAlchemy()
-tcgplayer_request_handler = TCGPlayerRequestHandler()
-database_sync_worker = DatabaseSyncWorker(tcgplayer_request_handler)
 
 
 def create_app() -> Flask:
     # Import here to create tables
-    from models.card import Card
-    from models.set import Set
-    from models.sku import Sku
-    from models.rarity import Rarity
-    from models.printing import Printing
-    from models.condition import Condition
 
     flask_app = Flask(__name__)
     flask_app.config.from_object(AppConfig)
     db.init_app(flask_app)
-    db.create_all(app=flask_app)
+
+    with flask_app.app_context():
+        db.create_all()
 
     return flask_app
 
-
-scheduler = BackgroundScheduler()
-scheduler.add_job(func=database_sync_worker.update_card_database, trigger="interval", seconds=5)
-scheduler.start()
-
+print(__name__)
 if __name__ == '__main__':
+    print("RUNNING SHIT")
     app = create_app()
     app.run()
+    scheduler.add_job(func=database_sync_worker.update_card_database, trigger="interval", seconds=5)
+    scheduler.start()

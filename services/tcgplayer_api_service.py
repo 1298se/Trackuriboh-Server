@@ -34,6 +34,16 @@ class TCGPlayerApiService:
             lambda: requests.get(f'{TCGPLAYER_CATALOG_URL}rarities', headers=self.get_authorization_headers()).json()
         )
 
+    def get_card_printings(self) -> dict:
+        return self._fetchTCGPlayerResourceWithAccessToken(
+            lambda: requests.get(f'{TCGPLAYER_CATALOG_URL}printings', headers=self.get_authorization_headers()).json()
+        )
+
+    def get_card_conditions(self) -> dict:
+        return self._fetchTCGPlayerResourceWithAccessToken(
+            lambda: requests.get(f'{TCGPLAYER_CATALOG_URL}conditions', headers=self.get_authorization_headers()).json()
+        )
+
     def _fetchTCGPlayerResourceWithAccessToken(self, request_func) -> dict:
         if access_token_expired(self.access_token_expiry):
             print("ACCESS TOKEN EXPIRED: Fetching new one")

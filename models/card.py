@@ -1,4 +1,4 @@
-from extensions import db
+from app import db
 from models.rarity import Rarity
 from models.set import Set
 
@@ -14,6 +14,7 @@ class Card(db.Model):
     set = db.relationship(Set.__name__, backref=db.backref('cards', lazy=True))
     number = db.Column(db.String(255), index=True)
     # Ultra rare
+    rarity_id = db.Column(db.BIGINT, db.ForeignKey('rarity.id'), nullable=False)
     rarity = db.relationship(Rarity.__name__)
     # LIGHT
     attribute = db.Column(db.String(255))

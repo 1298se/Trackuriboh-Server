@@ -1,4 +1,4 @@
-from extensions import db
+from app import db
 
 
 class Set(db.Model):

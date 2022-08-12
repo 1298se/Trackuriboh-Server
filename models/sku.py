@@ -1,4 +1,4 @@
-from extensions import db
+from app import db
 from models.card import Card
 from models.condition import Condition
 from models.printing import Printing

@@ -1,13 +1,10 @@
-from typing import Any
-
 from flask.ctx import AppContext
 from flask_sqlalchemy import SQLAlchemy, Model
-from sqlalchemy.dialects.mysql import insert
 
 from services.tcgplayer_api_service import TCGPlayerApiService
 
 
-class CatalogRepository:
+class TCGPlayerCatalogRepository:
 
     def __init__(self):
         self.app_context = None
@@ -19,16 +16,20 @@ class CatalogRepository:
         self.db = db
         self.app_context = app_context
 
-    def fetch_card_rarities(self):
-        response = self.api_service.get_card_rarities()
+    async def fetch_card_rarities(self):
+        response = await self.api_service.get_card_rarities()
         return response['results']
 
-    def fetch_card_printings(self):
-        response = self.api_service.get_card_printings()
+    async def fetch_card_printings(self):
+        response = await self.api_service.get_card_printings()
         return response['results']
 
-    def fetch_card_conditions(self):
-        response = self.api_service.get_card_conditions()
+    async def fetch_card_conditions(self):
+        response = await self.api_service.get_card_conditions()
+        return response['results']
+
+    async def fetch_card_sets(self, offset, limit):
+        response = await self.api_service.get_sets(offset, limit)
         return response['results']
 
     def insert_printings(self, printings):

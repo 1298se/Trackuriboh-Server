@@ -1,4 +1,5 @@
 import os
+from asyncio import Lock
 from typing import Optional
 
 import aiohttp
@@ -9,7 +10,9 @@ from aiohttp import ClientSession
 TCGPLAYER_CATEGORY_ID = 2
 TCGPLAYER_BASE_URL = "https://api.tcgplayer.com"
 TCGPLAYER_ACCESS_TOKEN_URL = f'/token'
-TCGPLAYER_CATALOG_URL = f'/catalog/categories/{TCGPLAYER_CATEGORY_ID}/'
+TCGPLAYER_PRICING_URL = '/pricing/sku/'
+TCGPLAYER_CATALOG_URL = '/catalog/'
+TCGPLAYER_CATALOG_CATEGORIES_URL = f'{TCGPLAYER_CATALOG_URL}categories/{TCGPLAYER_CATEGORY_ID}/'
 
 
 def access_token_expired(expiry) -> bool:
@@ -27,68 +30,82 @@ class TCGPlayerApiService:
         self.access_token = None
         self.access_token_expiry = None
         self.session: Optional[ClientSession] = None
+        self.lock = Lock()
 
     def init(self, session: ClientSession):
         self.session = session
 
-    def get_authorization_headers(self) -> dict:
-        headers = {}
-        if self.access_token is not None:
-            headers['Authorization'] = f'bearer {self.access_token}'
+    async def get_authorization_headers(self) -> dict:
+        async with self.lock:
+            headers = {}
 
-        return headers
+            if await self._check_and_refresh_access_token():
+                headers['Authorization'] = f'bearer {self.access_token}'
 
-    async def get_card_rarities(self) -> dict:
-        return await self._fetch_tcgplayer_resource_with_access_token(
-            f'{TCGPLAYER_CATALOG_URL}rarities',
-            headers=self.get_authorization_headers()
-        )
+            return headers
 
     async def get_card_printings(self) -> dict:
-        return await self._fetch_tcgplayer_resource_with_access_token(
-            f'{TCGPLAYER_CATALOG_URL}printings',
-            headers=self.get_authorization_headers()
+        return await self._fetch_tcgplayer_resource(
+            f'{TCGPLAYER_CATALOG_CATEGORIES_URL}printings',
+            headers=await self.get_authorization_headers()
         )
 
     async def get_card_conditions(self) -> dict:
-        return await self._fetch_tcgplayer_resource_with_access_token(
-            f'{TCGPLAYER_CATALOG_URL}conditions',
-            headers=self.get_authorization_headers()
+        return await self._fetch_tcgplayer_resource(
+            f'{TCGPLAYER_CATALOG_CATEGORIES_URL}conditions',
+            headers=await self.get_authorization_headers()
         )
 
     async def get_sets(self, offset, limit):
-        return await self._fetch_tcgplayer_resource_with_access_token(
-            self._get_sets(offset, limit)
-        )
-
-    async def _get_sets(self, offset, limit):
         query_params = {
             'offset': offset,
             'limit': limit,
         }
-        async with self.session.get(
-                f'{TCGPLAYER_CATALOG_URL}groups',
-                headers=self.get_authorization_headers(),
-                params=query_params
-        ) as response:
-            return await response.json()
 
-    async def _fetch_tcgplayer_resource_with_access_token(self, url, **kwargs):
-        if not await self._check_and_refresh_access_token():
-            return None
+        return await self._fetch_tcgplayer_resource(
+            f'{TCGPLAYER_CATALOG_CATEGORIES_URL}groups',
+            headers=await self.get_authorization_headers(),
+            params=query_params,
+        )
 
-        print("FETCHING DATA ", url)
+    async def get_cards(self, offset, limit, set_id=None):
+        query_params = {
+            'getExtendedFields': "true",
+            'includeSkus': "true",
+            'productTypes': ["Cards"],
+            'offset': offset,
+            'limit': limit,
+            'categoryId': TCGPLAYER_CATEGORY_ID,
+        }
+
+        if set_id is not None:
+            query_params['groupId'] = set_id
+
+        return await self._fetch_tcgplayer_resource(
+            f'{TCGPLAYER_CATALOG_URL}products',
+            headers=await self.get_authorization_headers(),
+            params=query_params
+        )
+
+    async def get_sku_prices(self, sku_ids: list[int]):
+        return await self._fetch_tcgplayer_resource(
+            f'{TCGPLAYER_PRICING_URL}{",".join([str(sku_id) for sku_id in sku_ids])}',
+            headers=await self.get_authorization_headers(),
+        )
+
+    async def _fetch_tcgplayer_resource(self, url, **kwargs):
         try:
             async with self.session.get(
                     url=url,
                     **kwargs
             ) as response:
                 data = await response.json()
-                errors = data['errors']
-                if errors is None or len(errors) == 0:
+                errors = data.get('errors')
+                if errors is None or len(errors) == 0 or errors[0] == "No products were found.":
+                    print(f'SUCCESS on request {url}, {kwargs}')
                     return data
                 else:
-                    print(f'ERRORS: {data["errors"]}')
+                    print(f'ERRORS: {data["errors"]} on request {url}, {kwargs}')
         except aiohttp.ClientConnectionError:
             print('Connection Error')
 

@@ -25,9 +25,8 @@ class DatabaseSyncWorker:
                 response_set_model = Set.from_tcgplayer_response(set_response)
                 existing_set_model: Set = Set.query.get(response_set_model.id)
 
-                if response_set_model.release_date < datetime.now() and (
-                        existing_set_model is None or existing_set_model.modified_date < response_set_model.modified_date
-                ):
+                if (existing_set_model is None or
+                        existing_set_model.modified_date < response_set_model.modified_date):
                     outdated_sets.append(response_set_model)
 
     def _convert_and_insert_cards_and_skus(self, card_responses):
@@ -60,6 +59,8 @@ class DatabaseSyncWorker:
         from models.condition import Condition
         from models.printing import Printing
 
+        print(f'{self.__class__.__name__} started at {datetime.now()}')
+
         printing_responses, condition_responses = await asyncio.gather(*[
             self.catalog_repository.fetch_card_printings(),
             self.catalog_repository.fetch_card_conditions(),
@@ -73,8 +74,6 @@ class DatabaseSyncWorker:
 
         set_total_count = await self.catalog_repository.fetch_total_card_set_count()
 
-        print(f'SET TOTAL COUNT IS {set_total_count}')
-
         outdated_sets = []
         await paginate(
             total=set_total_count,
@@ -82,7 +81,7 @@ class DatabaseSyncWorker:
             on_paginated=lambda set_responses: self._add_updated_set_models(outdated_sets, set_responses)
         )
 
-        print(f'{len(outdated_sets)} SETS ARE OUTDATED: {outdated_sets}')
+        print(f'{len(outdated_sets)} sets are oudated: {[outdated_set.name for outdated_set in outdated_sets]}')
 
         self.catalog_repository.insert_sets(outdated_sets)
 
@@ -96,4 +95,4 @@ class DatabaseSyncWorker:
             pagination_size=1,
         )
 
-        print("JOB DONE!")
+        print(f'{self.__class__.__name__} done at {datetime.now()}')

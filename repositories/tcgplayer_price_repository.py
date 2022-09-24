@@ -1,7 +1,7 @@
 from typing import Optional
 
 from flask.ctx import AppContext
-from flask_sqlalchemy import SQLAlchemy, Model
+from flask_sqlalchemy import SQLAlchemy
 
 from services.tcgplayer_api_service import TCGPlayerApiService
 
@@ -10,7 +10,7 @@ class TCGPlayerPriceRepository:
 
     def __init__(self):
         self.app_context: Optional[AppContext] = None
-        self.db: Optional[SQLAlchemy] = None
+        self.db: Optional[SQLAlchemy] = None    
         self.api_service: Optional[TCGPlayerApiService] = None
 
     def init(self, api_service: TCGPlayerApiService, db: SQLAlchemy, app_context: AppContext):
@@ -37,8 +37,11 @@ class TCGPlayerPriceRepository:
                 sku.current_lowest_listing_price = response['lowestListingPrice'],
                 sku.current_market_price = response['marketPrice']
 
-                sku_pricing_info = SkuPricingInfo.from_tcgplayer_response(response, date)
+                # Only save pricing info for Near Mint cards because price trends for other conditions
+                # don't really make sense.
+                if sku.condition_id == 1:
+                    sku_pricing_info = SkuPricingInfo.from_tcgplayer_response(response, date)
 
-                self.db.session.add(sku_pricing_info)
+                    self.db.session.add(sku_pricing_info)
 
             self.db.session.commit()

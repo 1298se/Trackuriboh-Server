@@ -1,5 +1,4 @@
 from app import db
-from models.sku_pricing_info import SkuPricingInfo
 
 
 class Sku(db.Model):

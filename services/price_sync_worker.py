@@ -18,15 +18,18 @@ class PriceSyncWorker:
 
     def paginate_and_fetch_sku_prices(self, offset, limit):
         from models.sku import Sku
-        cur_page = offset / limit + 1
 
+        cur_page = offset / limit + 1
         with self.app_context:
-            skus = Sku.query.paginate(page=cur_page, max_per_page=limit).items
+            skus = Sku.query.paginate(page=cur_page, per_page=limit).items
+
         sku_ids = [sku.id for sku in skus]
         return self.price_repository.fetch_sku_prices(sku_ids)
 
     async def update_prices(self):
         from models.sku import Sku
+
+        print(f'{self.__class__.__name__} running at {datetime.now()}')
 
         with self.app_context:
             sku_total_count = Sku.query.count()
@@ -42,4 +45,4 @@ class PriceSyncWorker:
             )
         )
 
-        print("JOB DONE!")
+        print(f'Price sync done at {datetime.now()}')

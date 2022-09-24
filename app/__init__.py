@@ -23,7 +23,7 @@ scheduler = AsyncIOScheduler()
 
 def create_app(config: Union[object, str]) -> Flask:
     # Import here to create tables
-    from models import card, condition, printing, set, sku
+    from models import card, condition, printing, set, sku, sku_pricing_info
 
     app = Flask(__name__)
     app.config.from_object(config)
